@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { plantAPI, diagnosisAPI } from '../services/api';
+import { getImageSrc } from '../services/imageHelper';
 import Loader from '../components/Loader';
-import { 
-  ArrowLeft, Leaf, Droplets, Sun, Thermometer, Layers, 
-  Stethoscope, Clock, ChevronRight, Trash2, AlertTriangle, CheckCircle 
-} from 'lucide-react';
+import { ArrowLeft, Leaf, Droplets, Sun, Thermometer, Layers, Stethoscope, Clock, ChevronRight, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PlantDetail() {
@@ -15,9 +13,7 @@ export default function PlantDetail() {
   const [diagnoses, setDiagnoses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPlant();
-  }, [id]);
+  useEffect(() => { fetchPlant(); }, [id]);
 
   const fetchPlant = async () => {
     try {
@@ -46,11 +42,7 @@ export default function PlantDetail() {
     }
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
-
-  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric'
-  });
+  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const healthColor = (h) => {
     switch (h) {
@@ -67,22 +59,14 @@ export default function PlantDetail() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6 animate-fadeIn">
-      {/* Back */}
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
-      >
+      <button onClick={() => navigate('/dashboard')}
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
         <ArrowLeft className="w-4 h-4" /> Back to Library
       </button>
 
-      {/* Hero Image */}
       <div className="relative rounded-2xl overflow-hidden mb-4 bg-leaf-50">
-        {plant.imageUrl ? (
-          <img
-            src={`${API_BASE}${plant.imageUrl}`}
-            alt={plant.nickname}
-            className="w-full h-56 object-cover"
-          />
+        {getImageSrc(plant.imageUrl) ? (
+          <img src={getImageSrc(plant.imageUrl)} alt={plant.nickname} className="w-full h-56 object-cover" />
         ) : (
           <div className="w-full h-56 flex items-center justify-center">
             <Leaf className="w-16 h-16 text-leaf-200" />
@@ -90,7 +74,6 @@ export default function PlantDetail() {
         )}
       </div>
 
-      {/* Name & Species */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
           {plant.nickname || plant.species?.commonName || 'Unknown Plant'}
@@ -108,12 +91,10 @@ export default function PlantDetail() {
         )}
       </div>
 
-      {/* Care Guide */}
       {plant.generalCare && Object.values(plant.generalCare).some(Boolean) && (
         <div className="card p-4 mb-4">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Leaf className="w-4 h-4 text-leaf-600" />
-            Care Guide
+            <Leaf className="w-4 h-4 text-leaf-600" /> Care Guide
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {plant.generalCare.watering && (
@@ -156,33 +137,23 @@ export default function PlantDetail() {
         </div>
       )}
 
-      {/* Diagnosis History */}
       <div className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-orange-500" />
-            Diagnosis History
+            <Stethoscope className="w-4 h-4 text-orange-500" /> Diagnosis History
           </h2>
-          <Link
-            to={`/diagnose`}
-            className="text-xs font-medium text-leaf-700 hover:underline"
-          >
-            New Diagnosis
-          </Link>
+          <Link to="/diagnose" className="text-xs font-medium text-leaf-700 hover:underline">New Diagnosis</Link>
         </div>
         {diagnoses.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">No diagnoses yet for this plant</p>
         ) : (
           <div className="space-y-2">
             {diagnoses.map((d) => (
-              <Link
-                key={d._id}
-                to={`/diagnosis/${d._id}`}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-              >
+              <Link key={d._id} to={`/diagnosis/${d._id}`}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                  {d.imageUrl ? (
-                    <img src={`${API_BASE}${d.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                  {getImageSrc(d.imageUrl) ? (
+                    <img src={getImageSrc(d.imageUrl)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Stethoscope className="w-4 h-4 text-gray-300" />
@@ -199,8 +170,7 @@ export default function PlantDetail() {
                   </p>
                   <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                     <Clock className="w-3 h-3" /> {formatDate(d.createdAt)}
-                    <span>•</span>
-                    {d.conditions?.length || 0} condition{d.conditions?.length !== 1 ? 's' : ''}
+                    <span>•</span> {d.conditions?.length || 0} condition{d.conditions?.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -210,11 +180,8 @@ export default function PlantDetail() {
         )}
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={handleDelete}
-        className="btn-danger w-full flex items-center justify-center gap-2 text-sm"
-      >
+      <button onClick={handleDelete}
+        className="btn-danger w-full flex items-center justify-center gap-2 text-sm">
         <Trash2 className="w-4 h-4" /> Remove from Library
       </button>
     </div>

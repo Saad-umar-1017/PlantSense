@@ -17,7 +17,7 @@ const diagnosisSchema = new mongoose.Schema({
   plant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Plant',
-    required: false
+    required: true
   },
   imageUrl: {
     type: String,

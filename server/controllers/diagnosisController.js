@@ -2,8 +2,18 @@ const Diagnosis = require('../models/Diagnosis');
 const Plant = require('../models/Plant');
 const { diagnosePlantHealth } = require('../utils/groqService');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-// POST /api/diagnosis/analyze — Upload image and diagnose health
+// Helper: convert uploaded file to base64 data URI
+const fileToDataUri = (filePath) => {
+  const buffer = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase().replace('.', '');
+  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+  return `data:${mime};base64,${buffer.toString('base64')}`;
+};
+
+// POST /api/diagnosis/analyze
 const analyze = async (req, res) => {
   try {
     if (!req.file) {
@@ -12,36 +22,41 @@ const analyze = async (req, res) => {
 
     const { plantId } = req.body;
     const imagePath = req.file.path;
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageDataUri = fileToDataUri(imagePath);
 
-    // Get species info if plant is in library
     let speciesInfo = '';
-    let plant = null;
     if (plantId) {
-      plant = await Plant.findOne({ _id: plantId, user: req.user._id });
+      const plant = await Plant.findOne({ _id: plantId, user: req.user._id });
       if (plant) {
         speciesInfo = `${plant.species.commonName} (${plant.species.scientificName})`;
       }
     }
 
-    // Call Groq API for diagnosis
     const result = await diagnosePlantHealth(imagePath, speciesInfo);
 
-    // Create diagnosis record
-    const diagnosis = await Diagnosis.create({
+    // Clean up temp file
+    try { fs.unlinkSync(imagePath); } catch (e) {}
+
+    const diagnosisData = {
       user: req.user._id,
-      plant: plantId || null,
-      imageUrl,
+      imageUrl: imageDataUri,
       overallHealth: result.overallHealth || 'Healthy',
       conditions: result.conditions || [],
       summary: result.summary || 'Analysis complete.'
-    });
+    };
+
+    // Only add plant field if plantId is provided
+    if (plantId) {
+      diagnosisData.plant = plantId;
+    }
+
+    const diagnosis = await Diagnosis.create(diagnosisData);
 
     res.json({
       message: 'Health diagnosis complete',
       diagnosis: {
         id: diagnosis._id,
-        imageUrl,
+        imageUrl: imageDataUri,
         overallHealth: diagnosis.overallHealth,
         summary: diagnosis.summary,
         conditions: diagnosis.conditions,
@@ -54,7 +69,7 @@ const analyze = async (req, res) => {
   }
 };
 
-// POST /api/diagnosis/rediagnose/:plantId — Re-diagnose with new image
+// POST /api/diagnosis/rediagnose/:plantId
 const rediagnose = async (req, res) => {
   try {
     if (!req.file) {
@@ -63,7 +78,7 @@ const rediagnose = async (req, res) => {
 
     const { plantId } = req.params;
     const imagePath = req.file.path;
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageDataUri = fileToDataUri(imagePath);
 
     const plant = await Plant.findOne({ _id: plantId, user: req.user._id });
     const speciesInfo = plant 
@@ -72,10 +87,12 @@ const rediagnose = async (req, res) => {
 
     const result = await diagnosePlantHealth(imagePath, speciesInfo);
 
+    try { fs.unlinkSync(imagePath); } catch (e) {}
+
     const diagnosis = await Diagnosis.create({
       user: req.user._id,
       plant: plantId,
-      imageUrl,
+      imageUrl: imageDataUri,
       overallHealth: result.overallHealth || 'Healthy',
       conditions: result.conditions || [],
       summary: result.summary || 'Re-diagnosis complete.'
@@ -85,7 +102,7 @@ const rediagnose = async (req, res) => {
       message: 'Re-diagnosis complete',
       diagnosis: {
         id: diagnosis._id,
-        imageUrl,
+        imageUrl: imageDataUri,
         overallHealth: diagnosis.overallHealth,
         summary: diagnosis.summary,
         conditions: diagnosis.conditions,
@@ -98,7 +115,7 @@ const rediagnose = async (req, res) => {
   }
 };
 
-// GET /api/diagnosis/plant/:plantId — Get diagnosis history for a plant
+// GET /api/diagnosis/plant/:plantId
 const getPlantDiagnoses = async (req, res) => {
   try {
     const diagnoses = await Diagnosis.find({
@@ -112,7 +129,7 @@ const getPlantDiagnoses = async (req, res) => {
   }
 };
 
-// GET /api/diagnosis/history — Get all diagnosis history for user
+// GET /api/diagnosis/history
 const getAllDiagnoses = async (req, res) => {
   try {
     const diagnoses = await Diagnosis.find({ user: req.user._id })
@@ -126,7 +143,7 @@ const getAllDiagnoses = async (req, res) => {
   }
 };
 
-// GET /api/diagnosis/:id — Get single diagnosis report
+// GET /api/diagnosis/:id
 const getDiagnosis = async (req, res) => {
   try {
     const diagnosis = await Diagnosis.findOne({
@@ -144,7 +161,7 @@ const getDiagnosis = async (req, res) => {
   }
 };
 
-// PUT /api/diagnosis/:id/save — Save report to plant profile
+// PUT /api/diagnosis/:id/save
 const saveDiagnosis = async (req, res) => {
   try {
     const diagnosis = await Diagnosis.findOne({
@@ -159,7 +176,6 @@ const saveDiagnosis = async (req, res) => {
     diagnosis.isSaved = true;
     await diagnosis.save();
 
-    // Link to plant if exists
     if (diagnosis.plant) {
       await Plant.findByIdAndUpdate(diagnosis.plant, {
         $addToSet: { diagnosisReports: diagnosis._id }
@@ -172,7 +188,7 @@ const saveDiagnosis = async (req, res) => {
   }
 };
 
-// GET /api/diagnosis/:id/share — Generate shareable link
+// GET /api/diagnosis/:id/share
 const shareDiagnosis = async (req, res) => {
   try {
     const diagnosis = await Diagnosis.findOne({
@@ -199,7 +215,7 @@ const shareDiagnosis = async (req, res) => {
   }
 };
 
-// GET /api/diagnosis/shared/:token — View shared diagnosis (public)
+// GET /api/diagnosis/shared/:token (public)
 const viewSharedDiagnosis = async (req, res) => {
   try {
     const diagnosis = await Diagnosis.findOne({

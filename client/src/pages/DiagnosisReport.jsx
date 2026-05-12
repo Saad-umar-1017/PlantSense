@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { diagnosisAPI } from '../services/api';
+import { getImageSrc } from '../services/imageHelper';
 import Loader from '../components/Loader';
-import { 
-  ArrowLeft, AlertTriangle, CheckCircle, Shield, BookmarkPlus, 
-  Share2, Clock, Leaf, Info 
-} from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Shield, BookmarkPlus, Share2, Clock, Leaf, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function DiagnosisReport() {
@@ -15,9 +13,7 @@ export default function DiagnosisReport() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchReport();
-  }, [id]);
+  useEffect(() => { fetchReport(); }, [id]);
 
   const fetchReport = async () => {
     try {
@@ -53,8 +49,6 @@ export default function DiagnosisReport() {
       toast.error('Failed to generate share link');
     }
   };
-
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
   const formatDate = (d) => new Date(d).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -94,29 +88,23 @@ export default function DiagnosisReport() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6 animate-fadeIn">
-      {/* Back */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
-      >
+      <button onClick={() => navigate(-1)}
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-800">Diagnosis Report</h1>
         <div className="flex items-center gap-1 text-xs text-gray-400">
-          <Clock className="w-3.5 h-3.5" />
-          {formatDate(report.createdAt)}
+          <Clock className="w-3.5 h-3.5" /> {formatDate(report.createdAt)}
         </div>
       </div>
 
-      {/* Plant info */}
       {report.plant && (
         <div className="flex items-center gap-3 mb-4 bg-leaf-50 rounded-xl p-3">
           <div className="w-10 h-10 bg-white rounded-lg overflow-hidden flex-shrink-0">
-            {report.plant.imageUrl ? (
-              <img src={`${API_BASE}${report.plant.imageUrl}`} alt="" className="w-full h-full object-cover" />
+            {getImageSrc(report.plant.imageUrl) ? (
+              <img src={getImageSrc(report.plant.imageUrl)} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <Leaf className="w-5 h-5 text-leaf-300" />
@@ -134,18 +122,12 @@ export default function DiagnosisReport() {
         </div>
       )}
 
-      {/* Image */}
       {report.imageUrl && (
         <div className="rounded-2xl overflow-hidden mb-4 bg-gray-100">
-          <img
-            src={`${API_BASE}${report.imageUrl}`}
-            alt="Diagnosed plant"
-            className="w-full h-52 object-cover"
-          />
+          <img src={getImageSrc(report.imageUrl)} alt="Diagnosed plant" className="w-full h-52 object-cover" />
         </div>
       )}
 
-      {/* Overall Health */}
       <div className={`rounded-2xl border p-5 mb-4 ${healthBg(report.overallHealth)}`}>
         <div className="flex items-center gap-3 mb-2">
           {healthIcon(report.overallHealth)}
@@ -159,7 +141,6 @@ export default function DiagnosisReport() {
         )}
       </div>
 
-      {/* Conditions */}
       {report.conditions && report.conditions.length > 0 && (
         <div className="mb-4">
           <h3 className="text-base font-semibold text-gray-800 mb-3">
@@ -175,17 +156,12 @@ export default function DiagnosisReport() {
                 {cond.confidence > 0 && (
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-leaf-500 rounded-full"
-                        style={{ width: `${cond.confidence}%` }}
-                      />
+                      <div className="h-full bg-leaf-500 rounded-full" style={{ width: `${cond.confidence}%` }} />
                     </div>
                     <span className="text-xs text-gray-400">{cond.confidence}%</span>
                   </div>
                 )}
-                {cond.description && (
-                  <p className="text-sm text-gray-600 mb-2">{cond.description}</p>
-                )}
+                {cond.description && <p className="text-sm text-gray-600 mb-2">{cond.description}</p>}
                 {cond.remedy && (
                   <div className="bg-leaf-50 rounded-xl p-3 mt-2">
                     <p className="text-xs font-medium text-leaf-700 mb-1">Recommended Treatment</p>
@@ -206,27 +182,19 @@ export default function DiagnosisReport() {
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-3 mb-4">
         {report.plant && (
-          <button
-            onClick={handleSave}
-            disabled={saving || report.isSaved}
-            className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm"
-          >
-            <BookmarkPlus className="w-4 h-4" />
-            {report.isSaved ? 'Saved' : 'Save to Plant'}
+          <button onClick={handleSave} disabled={saving || report.isSaved}
+            className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm">
+            <BookmarkPlus className="w-4 h-4" /> {report.isSaved ? 'Saved' : 'Save to Plant'}
           </button>
         )}
-        <button
-          onClick={handleShare}
-          className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm"
-        >
+        <button onClick={handleShare}
+          className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm">
           <Share2 className="w-4 h-4" /> Share Report
         </button>
       </div>
 
-      {/* Disclaimer */}
       <div className="flex items-start gap-2 bg-amber-50 rounded-xl p-3">
         <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
         <p className="text-xs text-amber-700">

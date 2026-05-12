@@ -47,7 +47,7 @@ Rules:
 
   try {
     const response = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'llama-4-scout-17b-16e-instruct',
       messages: [
         {
           role: 'user',
@@ -118,7 +118,7 @@ Rules:
 
   try {
     const response = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'llama-4-scout-17b-16e-instruct',
       messages: [
         {
           role: 'user',

@@ -4,7 +4,15 @@ const { identifyPlant } = require('../utils/groqService');
 const fs = require('fs');
 const path = require('path');
 
-// POST /api/plants/identify — Upload image and identify species
+// Helper: convert uploaded file to base64 data URI
+const fileToDataUri = (filePath) => {
+  const buffer = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase().replace('.', '');
+  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+  return `data:${mime};base64,${buffer.toString('base64')}`;
+};
+
+// POST /api/plants/identify
 const identify = async (req, res) => {
   try {
     if (!req.file) {
@@ -12,15 +20,16 @@ const identify = async (req, res) => {
     }
 
     const imagePath = req.file.path;
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageDataUri = fileToDataUri(imagePath);
 
-    // Call Groq API for identification
     const predictions = await identifyPlant(imagePath);
 
-    // Save identification record
+    // Clean up temp file
+    try { fs.unlinkSync(imagePath); } catch (e) {}
+
     const identification = await Identification.create({
       user: req.user._id,
-      imageUrl,
+      imageUrl: imageDataUri,
       predictions
     });
 
@@ -28,7 +37,7 @@ const identify = async (req, res) => {
       message: 'Plant identified successfully',
       identification: {
         id: identification._id,
-        imageUrl,
+        imageUrl: imageDataUri,
         predictions,
         createdAt: identification.createdAt
       }
@@ -39,7 +48,7 @@ const identify = async (req, res) => {
   }
 };
 
-// POST /api/plants/reidentify/:id — Re-identify with new image
+// POST /api/plants/reidentify/:id
 const reidentify = async (req, res) => {
   try {
     if (!req.file) {
@@ -47,14 +56,14 @@ const reidentify = async (req, res) => {
     }
 
     const imagePath = req.file.path;
-    const imageUrl = `/uploads/${req.file.filename}`;
-
+    const imageDataUri = fileToDataUri(imagePath);
     const predictions = await identifyPlant(imagePath);
 
-    // Create new identification record
+    try { fs.unlinkSync(imagePath); } catch (e) {}
+
     const identification = await Identification.create({
       user: req.user._id,
-      imageUrl,
+      imageUrl: imageDataUri,
       predictions
     });
 
@@ -62,7 +71,7 @@ const reidentify = async (req, res) => {
       message: 'Plant re-identified successfully',
       identification: {
         id: identification._id,
-        imageUrl,
+        imageUrl: imageDataUri,
         predictions,
         createdAt: identification.createdAt
       }
@@ -73,7 +82,7 @@ const reidentify = async (req, res) => {
   }
 };
 
-// GET /api/plants/library — Get user's plant library
+// GET /api/plants/library
 const getLibrary = async (req, res) => {
   try {
     const plants = await Plant.find({ user: req.user._id })
@@ -86,12 +95,11 @@ const getLibrary = async (req, res) => {
   }
 };
 
-// POST /api/plants/library — Add plant to library
+// POST /api/plants/library
 const addToLibrary = async (req, res) => {
   try {
     const { nickname, identificationId, predictionIndex, environment } = req.body;
 
-    // Check 50 plant limit
     const plantCount = await Plant.countUserPlants(req.user._id);
     if (plantCount >= 50) {
       return res.status(400).json({ 
@@ -99,7 +107,6 @@ const addToLibrary = async (req, res) => {
       });
     }
 
-    // Get identification record
     const identification = await Identification.findOne({
       _id: identificationId,
       user: req.user._id
@@ -116,7 +123,6 @@ const addToLibrary = async (req, res) => {
       return res.status(400).json({ message: 'Invalid prediction selection' });
     }
 
-    // Create plant profile
     const plant = await Plant.create({
       user: req.user._id,
       nickname: nickname || prediction.commonName,
@@ -136,7 +142,6 @@ const addToLibrary = async (req, res) => {
       }]
     });
 
-    // Update identification record
     identification.addedToLibrary = true;
     identification.selectedPrediction = selectedIndex;
     identification.plantId = plant._id;
@@ -152,7 +157,7 @@ const addToLibrary = async (req, res) => {
   }
 };
 
-// GET /api/plants/history — Get identification history
+// GET /api/plants/history
 const getHistory = async (req, res) => {
   try {
     const history = await Identification.find({ user: req.user._id })
@@ -165,7 +170,7 @@ const getHistory = async (req, res) => {
   }
 };
 
-// GET /api/plants/:id — Get single plant details
+// GET /api/plants/:id
 const getPlant = async (req, res) => {
   try {
     const plant = await Plant.findOne({
@@ -183,7 +188,7 @@ const getPlant = async (req, res) => {
   }
 };
 
-// DELETE /api/plants/:id — Remove plant from library
+// DELETE /api/plants/:id
 const removePlant = async (req, res) => {
   try {
     const plant = await Plant.findOneAndDelete({
